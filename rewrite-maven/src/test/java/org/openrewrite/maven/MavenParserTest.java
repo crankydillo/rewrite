@@ -1203,7 +1203,6 @@ class MavenParserTest implements RewriteTest {
         );
     }
 
-    @Disabled
     @Issue("https://github.com/openrewrite/rewrite/issues/4269")
     @Test
     void activeByDefault() {
