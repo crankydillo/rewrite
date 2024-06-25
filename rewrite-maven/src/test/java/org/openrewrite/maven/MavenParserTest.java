@@ -24,18 +24,21 @@ import okhttp3.mockwebserver.RecordedRequest;
 import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
+import org.openrewrite.ExecutionContext;
 import org.openrewrite.InMemoryExecutionContext;
 import org.openrewrite.Issue;
 import org.openrewrite.Parser;
 import org.openrewrite.maven.internal.MavenParsingException;
 import org.openrewrite.maven.tree.*;
 import org.openrewrite.test.RewriteTest;
+import org.openrewrite.test.SourceSpec;
 import org.openrewrite.tree.ParseError;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.file.Paths;
 import java.util.Base64;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -1206,8 +1209,17 @@ class MavenParserTest implements RewriteTest {
     @Issue("https://github.com/openrewrite/rewrite/issues/4269")
     @Test
     void activeByDefault() {
-        rewriteRun(
-          mavenProject("c",
+        // Trying to mimic settings.xml activeProfile or `mvn -Pfoobar`
+        final String activeProfile = "foobar";
+        rewriteRun(recipeSpec -> {
+            final ExecutionContext context = new InMemoryExecutionContext();
+            // I don't think this is having the affect I want:(
+            recipeSpec.executionContext(
+              MavenExecutionContextView.view(context)
+                .setActiveProfiles(Collections.singletonList(activeProfile))
+            );
+
+        }, mavenProject("c",
             pomXml(
               """
                 <project>
@@ -1255,7 +1267,9 @@ class MavenParserTest implements RewriteTest {
                         </profile>
                     </profiles>
                 </project>
-                """
+                """, spec -> {
+                  ((MavenParser.Builder) spec.getParser()).activeProfiles(activeProfile);
+              }
             )
           ),
           mavenProject("a",
@@ -1281,9 +1295,8 @@ class MavenParserTest implements RewriteTest {
                         </dependency>
                     </dependencies>
                 </project>
-                """,
-              spec -> {
-                  ((MavenParser.Builder) spec.getParser()).activeProfiles("foobar");
+                """, spec -> {
+                  ((MavenParser.Builder) spec.getParser()).activeProfiles(activeProfile);
                   spec.afterRecipe(pomXml -> {
                       final Map<String, List<ResolvedDependency>> deps =
                         pomXml.getMarkers()
