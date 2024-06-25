@@ -1,0 +1,13 @@
+---
+type: specs.openrewrite.org/v1beta/recipe
+name: com.myorg.MyRecipe
+recipeList:
+    - org.openrewrite.maven.UpgradeParentVersion:
+            groupId: com.myorg.parent
+            artifactId: parent
+            newVersion: 2.0.0
+    - org.openrewrite.maven.ChangeDependencyGroupIdAndArtifactId:
+        oldGroupId: commons-collections
+        oldArtifactId: commons-collections
+        newGroupId: org.apache.commons
+        newArtifactId: commons-collections4

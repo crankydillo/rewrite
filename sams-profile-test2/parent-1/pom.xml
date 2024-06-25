@@ -1,0 +1,16 @@
+<project>
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>com.myorg.parent</groupId>
+    <artifactId>parent</artifactId>
+    <version>1.0.0</version>
+    <packaging>pom</packaging>
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>commons-collections</groupId>
+                <artifactId>commons-collections</artifactId>
+                <version>3.2.2</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+</project>

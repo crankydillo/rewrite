@@ -1,0 +1,16 @@
+<project>
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>com.myorg.parent</groupId>
+        <artifactId>parent</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+        <relativePath />
+    </parent>
+    <groupId>com.myorg.app</groupId>
+    <artifactId>profile-test-2</artifactId>
+    <version>5.0.0-SNAPSHOT</version>
+    <packaging>pom</packaging>
+    <modules>
+        <module>module-1</module>
+    </modules>
+</project>
