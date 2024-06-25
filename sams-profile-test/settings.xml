@@ -1,0 +1,10 @@
+<settings>
+    <activeProfiles>
+        <activeProfile>foobar</activeProfile>
+    </activeProfiles>
+    <profiles>
+        <profile>
+            <id>foobar</id>
+        </profile>
+    </profiles>
+</settings>
