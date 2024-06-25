@@ -2,6 +2,8 @@
   <img src="./doc/logo-oss.png" alt="OpenRewrite"/>
 </p>
 
+test
+
 <div align="center">
 
 <!-- Keep the gap above this line, otherwise they won't render correctly! -->
