@@ -1213,7 +1213,7 @@ class MavenParserTest implements RewriteTest {
         final String activeProfile = "foobar";
         rewriteRun(recipeSpec -> {
             final ExecutionContext context = new InMemoryExecutionContext();
-            // I don't think this is having the affect I want:(
+            // I don't think this is having the effect I want:(
             recipeSpec.executionContext(
               MavenExecutionContextView.view(context)
                 .setActiveProfiles(Collections.singletonList(activeProfile))
