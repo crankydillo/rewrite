@@ -1,9 +1,0 @@
----
-type: specs.openrewrite.org/v1beta/recipe
-name: com.myorg.MyRecipe
-recipeList:
-    - org.openrewrite.maven.ChangeDependencyGroupIdAndArtifactId:
-        oldGroupId: commons-collections
-        oldArtifactId: commons-collections
-        newGroupId: org.apache.commons
-        newArtifactId: commons-collections4
