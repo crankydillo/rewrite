@@ -11,3 +11,6 @@ recipeList:
         oldArtifactId: commons-collections
         newGroupId: org.apache.commons
         newArtifactId: commons-collections4
+    - org.openrewrite.maven.RemoveManagedDependency:
+        groupId: commons-collections
+        artifactId: commons-collections

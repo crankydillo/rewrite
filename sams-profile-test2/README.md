@@ -1,12 +1,12 @@
-Adhoc demo of issue with settings.xml's activeProfile
+Adhoc demo showing issues changing dependencies.
+
+There are 2 issues exposed here.  
 
 ```sh
 mvn -f parent-1/pom.xml install
 mvn -f parent-2/pom.xml install
 mvn -f recipe/pom.xml install -DskipTests
 ```
-
-# Does not work
 
 ```sh
 mvn -e org.openrewrite.maven:rewrite-maven-plugin:run \
