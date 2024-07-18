@@ -40,6 +40,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
 import java.util.function.UnaryOperator;
+import java.util.stream.Collectors;
 
 import static java.util.Collections.emptyList;
 import static org.openrewrite.maven.tree.MavenRepository.MAVEN_LOCAL_DEFAULT;
@@ -81,6 +82,29 @@ public class MavenSettings {
         this.activeProfiles = activeProfiles;
         this.mirrors = mirrors;
         this.servers = servers;
+    }
+
+    public List<Profile> activeProfiles(final Iterable<String> userSpecifiedProfiles) {
+        if (this.profiles == null) {
+            return Collections.emptyList();
+        }
+
+        final List<Profile> explicitActiveProfiles =
+                profiles.getProfiles().stream()
+                        .filter(p -> p.isActivated(userSpecifiedProfiles))
+                        .collect(Collectors.toList());
+
+        // activeByDefault profiles should be active even if they don't exist
+        // in userSpecifiedProfiles _unless_ a profile was activated by the
+        // user or is activated by its activation value (except for 'activeByDefault')
+        if (!explicitActiveProfiles.isEmpty()) {
+            return explicitActiveProfiles;
+        }
+
+        return profiles.getProfiles().stream()
+                .filter(p -> p.getActivation() != null &&
+                        Boolean.TRUE.equals(p.getActivation().getActiveByDefault()))
+                .collect(Collectors.toList());
     }
 
     public static @Nullable MavenSettings parse(Parser.Input source, ExecutionContext ctx) {
@@ -153,17 +177,22 @@ public class MavenSettings {
     }
 
     public List<RawRepositories.Repository> getActiveRepositories(Iterable<String> activeProfiles) {
-        LinkedHashMap<String, RawRepositories.Repository> activeRepositories = new LinkedHashMap<>();
+        List<String> allProfiles = new ArrayList<>();
+        if (activeProfiles != null) {
+            for (String prof : activeProfiles) {
+                allProfiles.add(prof);
+            }
+        }
 
-        if (profiles != null) {
-            for (Profile profile : profiles.getProfiles()) {
-                if (profile.isActive(activeProfiles) || (this.activeProfiles != null &&
-                                                         profile.isActive(this.activeProfiles.getActiveProfiles()))) {
-                    if (profile.repositories != null) {
-                        for (RawRepositories.Repository repository : profile.repositories.getRepositories()) {
-                            activeRepositories.put(repository.getId(), repository);
-                        }
-                    }
+        if (this.activeProfiles != null && this.activeProfiles.getActiveProfiles() != null) {
+            allProfiles.addAll(this.activeProfiles.getActiveProfiles());
+        }
+
+        LinkedHashMap<String, RawRepositories.Repository> activeRepositories = new LinkedHashMap<>();
+        for (Profile activeProfile : activeProfiles(allProfiles)) {
+            if (activeProfile.repositories != null) {
+                for (RawRepositories.Repository repository : activeProfile.repositories.getRepositories()) {
+                    activeRepositories.put(repository.getId(), repository);
                 }
             }
         }
@@ -315,13 +344,24 @@ public class MavenSettings {
         @Nullable
         RawRepositories repositories;
 
-        public boolean isActive(Iterable<String> activeProfiles) {
-            return ProfileActivation.isActive(id, activeProfiles, activation);
+        @SuppressWarnings("unused")
+        public boolean isActivated(String... activeProfiles) {
+            return isActivated(Arrays.asList(activeProfiles));
         }
 
-        @SuppressWarnings("unused")
-        public boolean isActive(String... activeProfiles) {
-            return isActive(Arrays.asList(activeProfiles));
+        /**
+         * Returns true if this profile was activated either by the supplied active profiles
+         * or by activation property, <i>but not solely by activeByDefault</i>.
+         */
+        boolean isActivated(Iterable<String> activeProfiles) {
+            if (getId() != null) {
+                for (String activeProfile : activeProfiles) {
+                    if (activeProfile.trim().equals(getId())) {
+                        return true;
+                    }
+                }
+            }
+            return getActivation() != null && getActivation().isActive();
         }
     }
 
