@@ -48,7 +48,7 @@ public class Profile {
      * Returns true if this profile was activated either by the supplied active profiles
      * or by activation property, <i>but not solely by activeByDefault</i>.
      */
-    boolean isActivated(Iterable<String> activeProfiles) {
+    public boolean isActive(Iterable<String> activeProfiles) {
         if (getId() != null) {
             for (String activeProfile : activeProfiles) {
                 if (activeProfile.trim().equals(getId())) {
