@@ -159,7 +159,7 @@ public class Pom {
     public List<Profile> activeProfiles(final Iterable<String> userSpecifiedProfiles) {
         final List<Profile> explicitActiveProfiles =
                 getProfiles().stream()
-                        .filter(p -> p.isActivated(userSpecifiedProfiles))
+                        .filter(p -> p.isActive(userSpecifiedProfiles))
                         .collect(Collectors.toList());
 
         // activeByDefault profiles should be active even if they don't exist
