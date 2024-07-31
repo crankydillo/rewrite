@@ -44,19 +44,4 @@ public class Profile implements WithProfiles.Profile {
 
     List<Plugin> plugins;
     List<Plugin> pluginManagement;
-
-    /**
-     * Returns true if this profile was activated either by the supplied active profiles
-     * or by activation property, <i>but not solely by activeByDefault</i>.
-     */
-    public boolean isActive(Iterable<String> activeProfiles) {
-        if (getId() != null) {
-            for (String activeProfile : activeProfiles) {
-                if (activeProfile.trim().equals(getId())) {
-                    return true;
-                }
-            }
-        }
-        return getActivation() != null && getActivation().isActive();
-    }
 }
