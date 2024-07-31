@@ -45,16 +45,6 @@ public class Profile implements WithProfiles.Profile {
     List<Plugin> plugins;
     List<Plugin> pluginManagement;
 
-    @Override
-    public boolean isActive() {
-        return activation != null && activation.isActive();
-    }
-
-    @Override
-    public boolean isActiveByDefault() {
-        return activation != null && Boolean.TRUE.equals(activation.getActiveByDefault());
-    }
-
     /**
      * Returns true if this profile was activated either by the supplied active profiles
      * or by activation property, <i>but not solely by activeByDefault</i>.
