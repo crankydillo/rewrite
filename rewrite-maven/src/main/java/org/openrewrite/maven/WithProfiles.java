@@ -5,7 +5,7 @@ import java.util.stream.Collectors;
 
 public interface WithProfiles<P extends WithProfiles.Profile> {
     interface Profile {
-        String id();
+        String getId();
         boolean isActive();
         boolean isActiveByDefault();
     }
@@ -33,9 +33,9 @@ public interface WithProfiles<P extends WithProfiles.Profile> {
     }
 
     default boolean isActivated(final P profile, final Iterable<String> userSpecifiedProfiles) {
-        if (profile.id() != null) {
+        if (profile.getId() != null) {
             for (String activeProfile : userSpecifiedProfiles) {
-                if (activeProfile.trim().equals(profile.id())) {
+                if (activeProfile.trim().equals(profile.getId())) {
                     return true;
                 }
             }
