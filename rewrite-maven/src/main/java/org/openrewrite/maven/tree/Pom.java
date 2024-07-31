@@ -22,6 +22,7 @@ import lombok.With;
 import org.openrewrite.ExecutionContext;
 import org.openrewrite.internal.lang.Nullable;
 import org.openrewrite.maven.MavenDownloadingException;
+import org.openrewrite.maven.WithProfiles;
 import org.openrewrite.maven.internal.MavenPomDownloader;
 
 import java.nio.file.Path;
@@ -48,7 +49,7 @@ import static org.openrewrite.internal.ListUtils.concatAll;
 @With
 @Builder
 @AllArgsConstructor
-public class Pom {
+public class Pom implements WithProfiles<Profile> {
 
     private static final List<String> JAR_PACKAGING_TYPES = Arrays.asList("jar", "bundle");
 
@@ -104,13 +105,18 @@ public class Pom {
     List<License> licenses = emptyList();
 
     @Builder.Default
-    List<Profile> profiles = emptyList();
+    List<org.openrewrite.maven.tree.Profile> profiles = emptyList();
 
     @Builder.Default
     List<Plugin> plugins = emptyList();
 
     @Builder.Default
     List<Plugin> pluginManagement = emptyList();
+
+    @Override
+    public List<org.openrewrite.maven.tree.Profile> listProfiles() {
+        return profiles;
+    }
 
     public String getGroupId() {
         return gav.getGroupId();
@@ -153,24 +159,6 @@ public class Pom {
                     return r;
                 })
                 .distinct()
-                .collect(Collectors.toList());
-    }
-
-    public List<Profile> activeProfiles(final Iterable<String> userSpecifiedProfiles) {
-        final List<Profile> explicitActiveProfiles =
-                getProfiles().stream()
-                        .filter(p -> p.isActive(userSpecifiedProfiles))
-                        .collect(Collectors.toList());
-
-        // activeByDefault profiles should be active even if they don't exist
-        // in userSpecifiedProfiles _unless_ a profile was active.
-        if (!explicitActiveProfiles.isEmpty()) {
-            return explicitActiveProfiles;
-        }
-
-        return getProfiles().stream()
-                .filter(p -> p.getActivation() != null &&
-                        Boolean.TRUE.equals(p.getActivation().getActiveByDefault()))
                 .collect(Collectors.toList());
     }
 
