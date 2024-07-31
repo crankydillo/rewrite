@@ -1,13 +1,18 @@
 package org.openrewrite.maven;
 
+import org.openrewrite.internal.lang.Nullable;
+import org.openrewrite.maven.tree.ProfileActivation;
+
 import java.util.List;
 import java.util.stream.Collectors;
 
 public interface WithProfiles<P extends WithProfiles.Profile> {
     interface Profile {
+        @Nullable
         String getId();
-        boolean isActive();
-        boolean isActiveByDefault();
+
+        @Nullable
+        ProfileActivation getActivation();
     }
 
     List<P> listProfiles();
@@ -28,7 +33,7 @@ public interface WithProfiles<P extends WithProfiles.Profile> {
         }
 
         return profiles.stream()
-                .filter(p -> Boolean.TRUE.equals(p.isActiveByDefault()))
+                .filter(p -> p.getActivation() != null && Boolean.TRUE.equals(p.getActivation().getActiveByDefault()))
                 .collect(Collectors.toList());
     }
 
@@ -40,7 +45,7 @@ public interface WithProfiles<P extends WithProfiles.Profile> {
                 }
             }
         }
-        return profile.isActive();
+        return profile.getActivation() != null && profile.getActivation().isActive();
     }
 
 }
