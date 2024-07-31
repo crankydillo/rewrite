@@ -13,6 +13,21 @@ public interface WithProfiles<P extends WithProfiles.Profile> {
 
         @Nullable
         ProfileActivation getActivation();
+
+        /**
+         * Returns true if this profile was activated either by the supplied active profiles
+         * or by activation property, <i>but not solely by activeByDefault</i>.
+         */
+        default boolean isActive(Iterable<String> userSpecifiedProfiles) {
+            if (getId() != null) {
+                for (String activeProfile : userSpecifiedProfiles) {
+                    if (activeProfile.trim().equals(getId())) {
+                        return true;
+                    }
+                }
+            }
+            return getActivation() != null && getActivation().isActive();
+        }
     }
 
     List<P> listProfiles();
@@ -22,7 +37,7 @@ public interface WithProfiles<P extends WithProfiles.Profile> {
 
         final List<P> explicitActiveProfiles =
                 profiles.stream()
-                        .filter(p -> isActivated(p, userSpecifiedProfiles))
+                        .filter(p -> p.isActive(userSpecifiedProfiles))
                         .collect(Collectors.toList());
 
         // activeByDefault profiles should be active even if they don't exist
@@ -36,16 +51,4 @@ public interface WithProfiles<P extends WithProfiles.Profile> {
                 .filter(p -> p.getActivation() != null && Boolean.TRUE.equals(p.getActivation().getActiveByDefault()))
                 .collect(Collectors.toList());
     }
-
-    default boolean isActivated(final P profile, final Iterable<String> userSpecifiedProfiles) {
-        if (profile.getId() != null) {
-            for (String activeProfile : userSpecifiedProfiles) {
-                if (activeProfile.trim().equals(profile.getId())) {
-                    return true;
-                }
-            }
-        }
-        return profile.getActivation() != null && profile.getActivation().isActive();
-    }
-
 }
