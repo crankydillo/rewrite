@@ -40,7 +40,6 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
 import java.util.function.UnaryOperator;
-import java.util.stream.Collectors;
 
 import static java.util.Collections.emptyList;
 import static org.openrewrite.maven.tree.MavenRepository.MAVEN_LOCAL_DEFAULT;
@@ -51,7 +50,7 @@ import static org.openrewrite.maven.tree.MavenRepository.MAVEN_LOCAL_DEFAULT;
 @Data
 @AllArgsConstructor
 @JacksonXmlRootElement(localName = "settings")
-public class MavenSettings {
+public class MavenSettings implements WithProfiles<MavenSettings.Profile> {
     @Nullable
     String localRepository;
 
@@ -84,27 +83,12 @@ public class MavenSettings {
         this.servers = servers;
     }
 
-    public List<Profile> activeProfiles(final Iterable<String> userSpecifiedProfiles) {
-        if (this.profiles == null) {
+    @Override
+    public List<Profile> listProfiles() {
+        if (profiles == null) {
             return Collections.emptyList();
         }
-
-        final List<Profile> explicitActiveProfiles =
-                profiles.getProfiles().stream()
-                        .filter(p -> p.isActive(userSpecifiedProfiles))
-                        .collect(Collectors.toList());
-
-        // activeByDefault profiles should be active even if they don't exist
-        // in userSpecifiedProfiles _unless_ a profile was activated by the
-        // user or is activated by its activation value (except for 'activeByDefault')
-        if (!explicitActiveProfiles.isEmpty()) {
-            return explicitActiveProfiles;
-        }
-
-        return profiles.getProfiles().stream()
-                .filter(p -> p.getActivation() != null &&
-                        Boolean.TRUE.equals(p.getActivation().getActiveByDefault()))
-                .collect(Collectors.toList());
+        return profiles.getProfiles();
     }
 
     public static @Nullable MavenSettings parse(Parser.Input source, ExecutionContext ctx) {
@@ -334,7 +318,7 @@ public class MavenSettings {
 
     @FieldDefaults(makeFinal = true, level = AccessLevel.PRIVATE)
     @Data
-    public static class Profile {
+    public static class Profile implements WithProfiles.Profile {
         @Nullable
         String id;
 
@@ -343,6 +327,21 @@ public class MavenSettings {
 
         @Nullable
         RawRepositories repositories;
+
+        @Override
+        public String id() {
+            return id;
+        }
+
+        @Override
+        public boolean isActive() {
+            return activation != null && activation.isActive();
+        }
+
+        @Override
+        public boolean isActiveByDefault() {
+            return activation != null && Boolean.TRUE.equals(activation.getActiveByDefault());
+        }
 
         /**
          * Returns true if this profile was activated either by the supplied active profiles
