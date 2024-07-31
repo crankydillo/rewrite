@@ -46,11 +46,6 @@ public class Profile implements WithProfiles.Profile {
     List<Plugin> pluginManagement;
 
     @Override
-    public String id() {
-        return id;
-    }
-
-    @Override
     public boolean isActive() {
         return activation != null && activation.isActive();
     }

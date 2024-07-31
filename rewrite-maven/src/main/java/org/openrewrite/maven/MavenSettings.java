@@ -329,11 +329,6 @@ public class MavenSettings implements WithProfiles<MavenSettings.Profile> {
         RawRepositories repositories;
 
         @Override
-        public String id() {
-            return id;
-        }
-
-        @Override
         public boolean isActive() {
             return activation != null && activation.isActive();
         }
