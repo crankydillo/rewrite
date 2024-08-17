@@ -15,10 +15,11 @@
  */
 package org.openrewrite.maven;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.*;
+import org.jspecify.annotations.Nullable;
 import org.openrewrite.*;
 import org.openrewrite.internal.StringUtils;
-import org.openrewrite.internal.lang.Nullable;
 import org.openrewrite.text.PlainText;
 import org.openrewrite.text.PlainTextVisitor;
 
@@ -65,8 +66,11 @@ public class AddRuntimeConfig extends ScanningRecipe<AddRuntimeConfig.Accumulato
 
     @Getter
     public enum Separator {
+        @JsonProperty("")
         NONE(""),
+        @JsonProperty(" ")
         SPACE(" "),
+        @JsonProperty("=")
         EQUALS("=");
 
         private final String notation;

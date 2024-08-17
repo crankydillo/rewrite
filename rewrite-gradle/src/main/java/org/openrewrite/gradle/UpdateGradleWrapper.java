@@ -21,11 +21,12 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.experimental.NonFinal;
+import org.jspecify.annotations.Nullable;
 import org.openrewrite.*;
+import org.openrewrite.gradle.search.FindGradleProject;
 import org.openrewrite.gradle.util.GradleWrapper;
 import org.openrewrite.internal.ListUtils;
 import org.openrewrite.internal.StringUtils;
-import org.openrewrite.internal.lang.Nullable;
 import org.openrewrite.marker.BuildTool;
 import org.openrewrite.marker.Markers;
 import org.openrewrite.properties.PropertiesParser;
@@ -134,7 +135,7 @@ public class UpdateGradleWrapper extends ScanningRecipe<UpdateGradleWrapper.Grad
                         throw new IllegalArgumentException(
                                 "wrapperUri contains a ${version} interpolation specifier but no version parameter was specified.", e);
                     }
-                    if(!version.matches("[0-9.]+")) {
+                    if (!version.matches("[0-9.]+")) {
                         throw new IllegalArgumentException(
                                 "Version selectors like \"" + version + "\" are unavailable when services.gradle.org cannot be reached. " +
                                 "Specify an exact, literal version number.", e);
@@ -150,6 +151,7 @@ public class UpdateGradleWrapper extends ScanningRecipe<UpdateGradleWrapper.Grad
     }
 
     public static class GradleWrapperState {
+        boolean gradleProject = false;
         boolean needsWrapperUpdate = false;
         BuildTool updatedMarker;
         boolean addGradleWrapperProperties = true;
@@ -225,6 +227,10 @@ public class UpdateGradleWrapper extends ScanningRecipe<UpdateGradleWrapper.Grad
                             return false;
                         }
 
+                        if (new FindGradleProject(FindGradleProject.SearchCriteria.Marker).getVisitor().visitNonNull(sourceFile, ctx) != sourceFile) {
+                            acc.gradleProject = true;
+                        }
+
                         if ((sourceFile instanceof Quark || sourceFile instanceof Remote) &&
                             equalIgnoringSeparators(sourceFile.getSourcePath(), WRAPPER_JAR_LOCATION)) {
                             acc.addGradleWrapperJar = false;
@@ -250,6 +256,10 @@ public class UpdateGradleWrapper extends ScanningRecipe<UpdateGradleWrapper.Grad
     @Override
     public Collection<SourceFile> generate(GradleWrapperState acc, ExecutionContext ctx) {
         if (Boolean.FALSE.equals(addIfMissing)) {
+            return Collections.emptyList();
+        }
+
+        if (!acc.gradleProject) {
             return Collections.emptyList();
         }
 
@@ -462,7 +472,7 @@ public class UpdateGradleWrapper extends ScanningRecipe<UpdateGradleWrapper.Grad
                 String currentUrl = value.getText();
                 // Prefer wrapperUri specified directly in the recipe over other options
                 // If that isn't set, prefer the existing artifact repository URL over changing to services.gradle.org
-                if (wrapperUri != null) {
+                if (!StringUtils.isBlank(wrapperUri)) {
                     String effectiveWrapperUri = formatUriForPropertiesFile(wrapperUri
                             .replace("${version}", gradleWrapper.getVersion())
                             .replace("${distribution}", distribution == null ? "bin" : distribution));
