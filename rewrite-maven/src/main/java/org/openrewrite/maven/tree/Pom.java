@@ -87,6 +87,9 @@ public class Pom implements WithProfiles<Profile> {
     String name;
 
     @Nullable
+    Prerequisites prerequisites;
+
+    @Nullable
     String packaging;
 
     @Builder.Default

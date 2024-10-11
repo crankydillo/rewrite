@@ -24,6 +24,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.openrewrite.*;
 import org.openrewrite.ipc.http.HttpSender;
@@ -34,7 +35,6 @@ import org.openrewrite.maven.MavenParser;
 import org.openrewrite.maven.MavenSettings;
 import org.openrewrite.maven.tree.*;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.net.UnknownHostException;
 import java.nio.file.Files;
@@ -82,8 +82,11 @@ class MavenPomDownloaderTest {
     @Test
     void ossSonatype() {
         InMemoryExecutionContext ctx = new InMemoryExecutionContext();
-        MavenRepository ossSonatype = new MavenRepository("oss", "https://oss.sonatype.org/content/repositories/snapshots/",
-          null, "true", false, null, null, null);
+        MavenRepository ossSonatype = MavenRepository.builder()
+          .id("oss")
+          .uri("https://oss.sonatype.org/content/repositories/snapshots/")
+          .snapshots(true)
+          .build();
         MavenRepository repo = new MavenPomDownloader(ctx).normalizeRepository(ossSonatype,
           MavenExecutionContextView.view(ctx), null);
         assertThat(repo).isNotNull().extracting((MavenRepository::getUri)).isEqualTo(ossSonatype.getUri());
@@ -93,7 +96,7 @@ class MavenPomDownloaderTest {
     @Test
     void centralIdOverridesDefaultRepository() {
         var ctx = MavenExecutionContextView.view(this.ctx);
-        ctx.setMavenSettings(MavenSettings.parse(new Parser.Input(Paths.get("settings.xml"), () -> new ByteArrayInputStream(
+        ctx.setMavenSettings(MavenSettings.parse(Parser.Input.fromString(Paths.get("settings.xml"),
           //language=xml
           """
             <settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
@@ -115,8 +118,8 @@ class MavenPomDownloaderTest {
                 <activeProfile>central</activeProfile>
               </activeProfiles>
             </settings>
-            """.getBytes()
-        )), ctx));
+            """
+        ), ctx));
 
         // Avoid actually trying to reach the made-up https://internalartifactrepository.yourorg.com
         for (MavenRepository repository : ctx.getRepositories()) {
@@ -195,7 +198,7 @@ class MavenPomDownloaderTest {
     @Test
     void mirrorsOverrideRepositoriesInPom() {
         var ctx = MavenExecutionContextView.view(this.ctx);
-        ctx.setMavenSettings(MavenSettings.parse(new Parser.Input(Paths.get("settings.xml"), () -> new ByteArrayInputStream(
+        ctx.setMavenSettings(MavenSettings.parse(Parser.Input.fromString(Paths.get("settings.xml"),
           //language=xml
           """
             <settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
@@ -210,8 +213,8 @@ class MavenPomDownloaderTest {
                 </mirror>
               </mirrors>
             </settings>
-            """.getBytes()
-        )), ctx));
+            """
+        ), ctx));
 
         Path pomPath = Paths.get("pom.xml");
         Pom pom = Pom.builder()
@@ -406,17 +409,24 @@ class MavenPomDownloaderTest {
             mockRepo.setDispatcher(new Dispatcher() {
                 @Override
                 public MockResponse dispatch(RecordedRequest recordedRequest) {
-                    return recordedRequest.getHeaders().get("Authorization") != null ?
-                      new MockResponse().setResponseCode(200).setBody(
-                        //language=xml
-                        """
-                          <project>
-                              <groupId>org.springframework.cloud</groupId>
-                              <artifactId>spring-cloud-dataflow-build</artifactId>
-                              <version>2.10.0-SNAPSHOT</version>
-                          </project>
-                          """) :
-                      new MockResponse().setResponseCode(401).setBody("");
+                    MockResponse response = new MockResponse();
+                    if (recordedRequest.getHeaders().get("Authorization") != null) {
+                        response.setResponseCode(200);
+                        if (!"HEAD".equalsIgnoreCase(recordedRequest.getMethod())) {
+                            response.setBody(
+                              //language=xml
+                              """
+                                <project>
+                                    <groupId>org.springframework.cloud</groupId>
+                                    <artifactId>spring-cloud-dataflow-build</artifactId>
+                                    <version>2.10.0-SNAPSHOT</version>
+                                </project>
+                                """);
+                        }
+                    } else {
+                        response.setResponseCode(401);
+                    }
+                    return response;
                 }
             });
             mockRepo.start();
@@ -443,17 +453,21 @@ class MavenPomDownloaderTest {
             mockRepo.setDispatcher(new Dispatcher() {
                 @Override
                 public MockResponse dispatch(RecordedRequest recordedRequest) {
-                    return recordedRequest.getHeaders().get("Authorization") == null ?
-                      new MockResponse().setResponseCode(200).setBody(
-                        //language=xml
-                        """
-                          <project>
-                              <groupId>org.springframework.cloud</groupId>
-                              <artifactId>spring-cloud-dataflow-build</artifactId>
-                              <version>2.10.0-SNAPSHOT</version>
-                          </project>
-                          """) :
-                      new MockResponse().setResponseCode(401).setBody("");
+                    MockResponse response = new MockResponse();
+                    if (recordedRequest.getHeaders().get("Authorization") != null) {
+                        response.setResponseCode(401);
+                    } else if (recordedRequest.getMethod() == null || !recordedRequest.getMethod().equalsIgnoreCase("HEAD")) {
+                        response.setBody(
+                          //language=xml
+                          """
+                            <project>
+                                <groupId>org.springframework.cloud</groupId>
+                                <artifactId>spring-cloud-dataflow-build</artifactId>
+                                <version>2.10.0-SNAPSHOT</version>
+                            </project>
+                            """);
+                    }
+                    return response;
                 }
             });
             mockRepo.start();
@@ -540,11 +554,11 @@ class MavenPomDownloaderTest {
               """
                     <project>
                         <modelVersion>4.0.0</modelVersion>
-                    
+                
                         <groupId>org.openrewrite.test</groupId>
                         <artifactId>foo</artifactId>
                         <version>0.1.0-SNAPSHOT</version>
-                        
+                
                         <repositories>
                           <repository>
                             <id>snapshot</id>
@@ -561,7 +575,7 @@ class MavenPomDownloaderTest {
                             <url>http://%s:%d</url>
                           </repository>
                         </repositories>
-                        
+                
                         <dependencies>
                             <dependency>
                                 <groupId>org.springframework.cloud</groupId>
@@ -738,6 +752,7 @@ class MavenPomDownloaderTest {
         var downloader = new MavenPomDownloader(emptyMap(), ctx);
 
         var result = downloader.download(gav, null, null, List.of());
+        //noinspection DataFlowIssue
         assertThat(result.getRepository()).isNotNull();
         assertThat(result.getRepository().getUri()).startsWith(tempDir.toUri().toString());
     }
@@ -754,6 +769,25 @@ class MavenPomDownloaderTest {
           .isInstanceOf(MavenDownloadingException.class)
           .hasMessageContaining("rewrite-core")
           .hasMessageContaining("10.0.0.0");
+    }
+
+    @CsvSource(textBlock = """
+      https://repo1.maven.org/maven2/, https://repo1.maven.org/maven2/
+      https://repo1.maven.org/maven2, https://repo1.maven.org/maven2/
+      http://repo1.maven.org/maven2/, https://repo1.maven.org/maven2/
+      
+      https://oss.sonatype.org/content/repositories/snapshots/, https://oss.sonatype.org/content/repositories/snapshots/
+      https://artifactory.moderne.ninja/artifactory/moderne-public/, https://artifactory.moderne.ninja/artifactory/moderne-public/
+      https://repo.maven.apache.org/maven2/, https://repo.maven.apache.org/maven2/
+      https://jitpack.io/, https://jitpack.io/
+      """)
+    @ParameterizedTest
+    void normalizeRepository(String originalUrl, String expectedUrl) throws Throwable {
+        MavenPomDownloader downloader = new MavenPomDownloader(new InMemoryExecutionContext());
+        MavenRepository repository = new MavenRepository("id", originalUrl, null, null, null, null, null);
+        MavenRepository normalized = downloader.normalizeRepository(repository);
+        assertThat(normalized).isNotNull();
+        assertThat(normalized.getUri()).isEqualTo(expectedUrl);
     }
 
     private static GroupArtifactVersion createArtifact(Path repository) throws IOException {
@@ -775,6 +809,114 @@ class MavenPomDownloaderTest {
             """.getBytes());
         Files.write(jar, "I'm a jar".getBytes()); // empty jars get ignored
         return new GroupArtifactVersion("org.openrewrite", "rewrite", "1.0.0");
+    }
+
+    @Test
+    void shouldNotThrowExceptionForModulesInModulesWithRightProperty() {
+        var gav = new GroupArtifactVersion("test", "test2", "${test}");
+
+        Path pomPath = Paths.get("test/test2/pom.xml");
+        Pom pom = Pom.builder()
+          .sourcePath(pomPath)
+          .repository(MAVEN_CENTRAL)
+          .properties(singletonMap("REPO_URL", MAVEN_CENTRAL.getUri()))
+          .parent(new Parent(new GroupArtifactVersion("test", "test", "${test}"), "../pom.xml"))
+          .gav(new ResolvedGroupArtifactVersion(
+            "${REPO_URL}", "test", "test2", "7.0.0", null))
+          .build();
+
+        ResolvedPom resolvedPom = ResolvedPom.builder()
+          .requested(pom)
+          .properties(singletonMap("REPO_URL", MAVEN_CENTRAL.getUri()))
+          .repositories(singletonList(MAVEN_CENTRAL))
+          .build();
+
+        Path pomPath2 = Paths.get("test/pom.xml");
+        Pom pom2 = Pom.builder()
+          .sourcePath(pomPath)
+          .repository(MAVEN_CENTRAL)
+          .properties(singletonMap("REPO_URL", MAVEN_CENTRAL.getUri()))
+          .parent(new Parent(new GroupArtifactVersion("test", "root-test", "${test}"), "../pom.xml"))
+          .gav(new ResolvedGroupArtifactVersion(
+            "${REPO_URL}", "test", "test", "7.0.0", null))
+          .build();
+
+
+        Path parentPomPath = Paths.get("pom.xml");
+        Pom parentPom = Pom.builder()
+          .sourcePath(parentPomPath)
+          .repository(MAVEN_CENTRAL)
+          .properties(singletonMap("test", "7.0.0"))
+          .parent(null)
+          .gav(new ResolvedGroupArtifactVersion(
+            "${REPO_URL}", "test", "root-test", "7.0.0", null))
+          .build();
+
+        Map<Path, Pom> pomsByPath = new HashMap<>();
+        pomsByPath.put(parentPomPath, parentPom);
+        pomsByPath.put(pomPath, pom);
+        pomsByPath.put(pomPath2, pom2);
+
+        String httpUrl = "http://%s.com".formatted(UUID.randomUUID());
+        MavenRepository nonexistentRepo = new MavenRepository("repo", httpUrl, null, null, false, null, null, null, null);
+
+        MavenPomDownloader downloader = new MavenPomDownloader(pomsByPath, ctx);
+
+        assertDoesNotThrow(() -> downloader.download(gav, Objects.requireNonNull(pom.getParent()).getRelativePath(), resolvedPom, singletonList(nonexistentRepo)));
+    }
+
+    @Test
+    void shouldThrowExceptionForModulesInModulesWithNoRightProperty() {
+        var gav = new GroupArtifactVersion("test", "test2", "${test}");
+
+        Path pomPath = Paths.get("test/test2/pom.xml");
+        Pom pom = Pom.builder()
+          .sourcePath(pomPath)
+          .repository(MAVEN_CENTRAL)
+          .properties(singletonMap("REPO_URL", MAVEN_CENTRAL.getUri()))
+          .parent(new Parent(new GroupArtifactVersion("test", "test", "${test}"), "../pom.xml"))
+          .gav(new ResolvedGroupArtifactVersion(
+            "${REPO_URL}", "test", "test2", "7.0.0", null))
+          .build();
+
+        ResolvedPom resolvedPom = ResolvedPom.builder()
+          .requested(pom)
+          .properties(singletonMap("REPO_URL", MAVEN_CENTRAL.getUri()))
+          .repositories(singletonList(MAVEN_CENTRAL))
+          .build();
+
+        Path pomPath2 = Paths.get("test/pom.xml");
+        Pom pom2 = Pom.builder()
+          .sourcePath(pomPath)
+          .repository(MAVEN_CENTRAL)
+          .properties(singletonMap("REPO_URL", MAVEN_CENTRAL.getUri()))
+          .parent(new Parent(new GroupArtifactVersion("test", "root-test", "${test}"), "../pom.xml"))
+          .gav(new ResolvedGroupArtifactVersion(
+            "${REPO_URL}", "test", "test", "7.0.0", null))
+          .build();
+
+
+        Path parentPomPath = Paths.get("pom.xml");
+        Pom parentPom = Pom.builder()
+          .sourcePath(parentPomPath)
+          .repository(MAVEN_CENTRAL)
+          .properties(singletonMap("tt", "7.0.0"))
+          .parent(null)
+          .gav(new ResolvedGroupArtifactVersion(
+            "${REPO_URL}", "test", "root-test", "7.0.0", null))
+          .build();
+
+        Map<Path, Pom> pomsByPath = new HashMap<>();
+        pomsByPath.put(parentPomPath, parentPom);
+        pomsByPath.put(pomPath, pom);
+        pomsByPath.put(pomPath2, pom2);
+
+        String httpUrl = "http://%s.com".formatted(UUID.randomUUID());
+        MavenRepository nonexistentRepo = new MavenRepository("repo", httpUrl, null, null, false, null, null, null, null);
+
+        MavenPomDownloader downloader = new MavenPomDownloader(pomsByPath, ctx);
+
+        assertThrows(IllegalArgumentException.class, () -> downloader.download(gav, Objects.requireNonNull(pom.getParent()).getRelativePath(), resolvedPom, singletonList(nonexistentRepo)));
     }
 
 }

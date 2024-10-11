@@ -23,7 +23,7 @@ import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlProperty;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 import lombok.experimental.NonFinal;
-import org.openrewrite.internal.lang.NonNull;
+import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import org.openrewrite.internal.StringUtils;
 import org.openrewrite.maven.tree.*;
@@ -40,6 +40,7 @@ import java.util.Objects;
 
 import static java.util.Collections.emptyList;
 import static java.util.Collections.emptyMap;
+import static org.openrewrite.maven.tree.Plugin.PLUGIN_DEFAULT_GROUPID;
 
 /**
  * A value object deserialized directly from POM XML
@@ -89,6 +90,9 @@ public class RawPom {
 
     @Nullable
     String description;
+
+    @Nullable
+    Prerequisites prerequisites;
 
     @Nullable
     String packaging;
@@ -193,6 +197,14 @@ public class RawPom {
     }
 
     @Getter
+    public static class Prerequisites {
+
+        @JacksonXmlProperty(localName = "maven")
+        @Nullable
+        public String maven;
+    }
+
+    @Getter
     public static class Profiles {
         private final List<Profile> profiles;
 
@@ -207,10 +219,8 @@ public class RawPom {
 
     @FieldDefaults(level = AccessLevel.PRIVATE)
     @Data
-    @AllArgsConstructor
     public static class Build {
 
-        @NonFinal
         @Nullable
         @JacksonXmlElementWrapper(localName = "plugins")
         @JacksonXmlProperty(localName = "plugin")
@@ -219,16 +229,12 @@ public class RawPom {
         @Nullable
         @JacksonXmlProperty(localName = "pluginManagement")
         PluginManagement pluginManagement;
-
-        public Build() {
-            plugins = null;
-            pluginManagement = null;
-        }
     }
 
     @FieldDefaults(level = AccessLevel.PRIVATE)
     @Data
     public static class PluginManagement {
+
         @Nullable
         @JacksonXmlElementWrapper(localName = "plugins")
         @JacksonXmlProperty(localName = "plugin")
@@ -238,6 +244,7 @@ public class RawPom {
     @FieldDefaults(makeFinal = true, level = AccessLevel.PRIVATE)
     @Data
     public static class Plugin {
+        @Nullable
         String groupId;
         String artifactId;
 
@@ -371,6 +378,7 @@ public class RawPom {
                         null))
                 .name(name)
                 .obsoletePomVersion(pomVersion)
+                .prerequisites(prerequisites == null ? null : new org.openrewrite.maven.tree.Prerequisites(prerequisites.getMaven()))
                 .packaging(packaging)
                 .properties(getProperties() == null ? emptyMap() : getProperties())
                 .licenses(mapLicenses(getLicenses()))
@@ -498,9 +506,9 @@ public class RawPom {
         if (rawPlugins != null) {
             plugins = new ArrayList<>(rawPlugins.size());
             for (Plugin rawPlugin : rawPlugins) {
-
+                String pluginGroupId = rawPlugin.getGroupId();
                 plugins.add(new org.openrewrite.maven.tree.Plugin(
-                        rawPlugin.getGroupId(),
+                        pluginGroupId == null ? PLUGIN_DEFAULT_GROUPID : pluginGroupId,
                         rawPlugin.getArtifactId(),
                         rawPlugin.getVersion(),
                         rawPlugin.getExtensions(),

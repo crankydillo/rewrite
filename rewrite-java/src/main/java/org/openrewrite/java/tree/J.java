@@ -19,7 +19,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 import lombok.experimental.NonFinal;
-import org.openrewrite.internal.lang.NonNull;
+import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import org.openrewrite.*;
 import org.openrewrite.internal.ListUtils;
@@ -3360,7 +3360,7 @@ public interface J extends Tree {
     @EqualsAndHashCode(callSuper = false, onlyExplicitlyIncluded = true)
     @RequiredArgsConstructor
     @AllArgsConstructor(access = AccessLevel.PRIVATE)
-    final class MemberReference implements J, Expression, TypedTree, MethodCall {
+    final class MemberReference implements J, TypedTree, MethodCall {
         @Nullable
         @NonFinal
         transient WeakReference<Padding> padding;
@@ -3804,7 +3804,7 @@ public interface J extends Tree {
     @EqualsAndHashCode(callSuper = false, onlyExplicitlyIncluded = true)
     @RequiredArgsConstructor
     @AllArgsConstructor(access = AccessLevel.PRIVATE)
-    final class MethodInvocation implements J, Statement, Expression, TypedTree, MethodCall {
+    final class MethodInvocation implements J, Statement, TypedTree, MethodCall {
         @Nullable
         @NonFinal
         transient WeakReference<Padding> padding;
@@ -4014,6 +4014,11 @@ public interface J extends Tree {
         @With
         @Getter
         List<Annotation> annotations;
+
+        @Override
+        public <P> J acceptJava(JavaVisitor<P> v, P p) {
+            return v.visitModifier(this, p);
+        }
 
         /**
          * @deprecated Use {@link #Modifier(UUID, Space, Markers, String, Type, List)} instead.
@@ -4311,7 +4316,7 @@ public interface J extends Tree {
     @EqualsAndHashCode(callSuper = false, onlyExplicitlyIncluded = true)
     @RequiredArgsConstructor
     @AllArgsConstructor(access = AccessLevel.PRIVATE)
-    final class NewClass implements J, Statement, Expression, TypedTree, MethodCall {
+    final class NewClass implements J, Statement, TypedTree, MethodCall {
         @Nullable
         @NonFinal
         transient WeakReference<Padding> padding;
@@ -5898,16 +5903,16 @@ public interface J extends Tree {
 
             public Cursor getDeclaringScope(Cursor cursor) {
                 return cursor.dropParentUntil(it ->
-                        it instanceof J.Block
-                        || it instanceof J.Lambda
-                        || it instanceof J.MethodDeclaration
-                        || it == Cursor.ROOT_VALUE);
+                        it instanceof J.Block ||
+                        it instanceof J.Lambda ||
+                        it instanceof J.MethodDeclaration ||
+                        it == Cursor.ROOT_VALUE);
             }
 
             public boolean isField(Cursor cursor) {
                 Cursor declaringScope = getDeclaringScope(cursor);
-                return declaringScope.getValue() instanceof J.Block
-                       && declaringScope.getParentTreeCursor().getValue() instanceof J.ClassDeclaration;
+                return declaringScope.getValue() instanceof J.Block &&
+                       declaringScope.getParentTreeCursor().getValue() instanceof J.ClassDeclaration;
             }
 
             public Padding getPadding() {

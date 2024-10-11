@@ -281,7 +281,7 @@ public class ChangeParentPom extends Recipe {
         });
     }
 
-    private static Pattern PROPERTY_PATTERN = Pattern.compile("\\$\\{([^}]+)}");
+    private static final Pattern PROPERTY_PATTERN = Pattern.compile("\\$\\{([^}]+)}");
 
     private static Map<String, String> getPropertiesInUse(Xml.Document pomXml, ExecutionContext ctx) {
         Map<String, String> properties = new HashMap<>();
@@ -309,8 +309,8 @@ public class ChangeParentPom extends Recipe {
             }
 
             private boolean isGlobalProperty(String propertyName) {
-                return propertyName.startsWith("project.") || propertyName.startsWith("env.")
-                        || propertyName.startsWith("settings.") || propertyName.equals("basedir");
+                return propertyName.startsWith("project.") || propertyName.startsWith("env.") ||
+                        propertyName.startsWith("settings.") || propertyName.equals("basedir");
             }
         }.visit(pomXml, ctx);
         return properties;
@@ -384,8 +384,8 @@ public class ChangeParentPom extends Recipe {
         @Override
         public Xml.Tag visitTag(Xml.Tag tag, ExecutionContext ctx) {
             Xml.Tag t = super.visitTag(tag, ctx);
-            if (isPropertyTag() && key.equals(tag.getName())
-                && !value.equals(tag.getValue().orElse(null))) {
+            if (isPropertyTag() && key.equals(tag.getName()) &&
+                !value.equals(tag.getValue().orElse(null))) {
                 t = (Xml.Tag) new ChangeTagValueVisitor<>(tag, value).visitNonNull(t, ctx);
             }
             return t;
